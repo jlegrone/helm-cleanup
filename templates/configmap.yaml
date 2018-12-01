@@ -1,0 +1,28 @@
+{{- if .Values.timeToLive.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helm-cleanup.fullname" . }}-cleanup
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+data:
+  delete_release.sh: |
+    /helm delete {{ .Release.Name }} \
+{{- if .Values.helmDeleteExtraArgs }}
+      {{ .Values.helmDeleteExtraArgs }} \
+{{- end }}
+{{- if .Values.purge }}
+      --purge \
+{{- end }}
+      --tiller-namespace {{ include "helm-cleanup.tiller-namespace" . }}
+  verify_permissions.sh: |
+    /helm list \
+      --tiller-namespace {{ include "helm-cleanup.tiller-namespace" . }}
+{{- end }}

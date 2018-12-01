@@ -1,0 +1,70 @@
+
+{{ if ( and .Values.rbac.create .Values.timeToLive.enabled ) }}
+{{- $serviceAccountName := ( tpl .Values.rbac.serviceAccountName . ) -}}
+{{- $rbacRef := printf "%s-%s" .Chart.Name $serviceAccountName -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $rbacRef }}
+  namespace: {{ include "helm-cleanup.tiller-namespace" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods/portforward
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $rbacRef }}
+  namespace: {{ include "helm-cleanup.tiller-namespace" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $rbacRef }}
+subjects:
+- kind: ServiceAccount
+  name: {{ $serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+{{ end }}

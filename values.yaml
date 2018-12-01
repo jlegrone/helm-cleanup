@@ -1,0 +1,56 @@
+# Default values for helm-cleanup.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+timeToLive:
+  enabled: false
+  # A timeToLive duration is a sequence of decimal numbers, each with
+  # optional fraction and a unit suffix, such as "48h", "1.5h" or "2h45m".
+  # Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+  duration: 24h
+
+# Set purge to true in order to remove the release from the store and make
+# its name free for later use. This is the same as running `helm delete --purge`.
+purge: true
+
+# Pass arbitrary extra arguments to `helm delete`.
+# ie. "--timeout 300"
+helmDeleteExtraArgs: ""
+
+# You may need to set tillerNamespace dynamically at install time by doing something
+# like `--set tillerNamespace=$TILLER_NAMESPACE`
+#
+# tillerNamespace is also interpreted as a template. This means that the value
+# `"{{ .Release.Namespace }}-system"` would be expanded to `my-app-system`
+# when the chart is installed in the `my-app` namespace.
+tillerNamespace: "kube-system"
+
+rbac:
+  create: true
+  # If verifyPermissions is true, each release will run a job that checks that
+  # its service account has the right level of permissions to delete helm releases.
+  verifyPermissions: true
+  serviceAccountName: "{{ .Release.Name }}-{{ .Chart.Name }}"
+
+image:
+  repository: gcr.io/kubernetes-helm/tiller
+  tag: "{{ .Capabilities.TillerVersion.SemVer }}"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 50m
+    memory: 32Mi
+  requests:
+    cpu: 50m
+    memory: 32Mi
+
+# Specify annotations to be applied to each resource created by this chart.
+annotations: {}
+  # helm.sh/resource-policy: keep
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

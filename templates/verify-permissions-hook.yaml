@@ -1,0 +1,54 @@
+{{- if ( and .Values.timeToLive.enabled .Values.rbac.verifyPermissions ) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ include "helm-cleanup.fullname" . }}-verify"
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  template:
+    metadata:
+      name: "{{ include "helm-cleanup.fullname" . }}-verify-perms"
+      labels:
+        app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+        helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ tpl .Values.rbac.serviceAccountName . }}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ include "helm-cleanup.fullname" . }}-cleanup
+          defaultMode: 0755
+      containers:
+      - name: verify
+        image: "{{ .Values.image.repository }}:{{ tpl .Values.image.tag . }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+        command: ["/bin/sh"]
+        args: ["-c", "/etc/config/verify_permissions.sh"]
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+{{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- end }}

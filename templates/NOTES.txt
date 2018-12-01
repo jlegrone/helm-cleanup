@@ -1,0 +1,4 @@
+The {{ .Chart.Name }} chart is not meant to be installed directly.
+Please install and configure this chart as a dependency instead!
+
+Reference: https://docs.helm.sh/developing_charts/#chart-dependencies

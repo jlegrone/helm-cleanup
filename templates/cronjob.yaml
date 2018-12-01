@@ -1,0 +1,60 @@
+{{- if .Values.timeToLive.enabled }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "helm-cleanup.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+    helm.sh/chart: {{ include "helm-cleanup.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  concurrencyPolicy: Replace
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 3
+  {{- $target := ( now | date_modify .Values.timeToLive.duration ) }}
+  schedule: "{{ date_in_zone "4 15 2 1" $target "UTC" }} *"
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "helm-cleanup.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      backoffLimit: 6
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ tpl .Values.rbac.serviceAccountName . }}
+          volumes:
+          - name: config-volume
+            configMap:
+              name: {{ include "helm-cleanup.fullname" . }}-cleanup
+              defaultMode: 0755
+          containers:
+          - name: {{ .Chart.Name }}
+            image: "{{ .Values.image.repository }}:{{ tpl .Values.image.tag . }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            command: ["/bin/sh"]
+            args: ["-c", "/etc/config/delete_release.sh"]
+            resources:
+{{ toYaml .Values.resources | indent 14 }}
+{{- with .Values.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- end }}
